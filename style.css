@@ -510,7 +510,7 @@ html {
   border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
   padding: 22px 24px 20px;
-  margin-top: 8px;
+  margin-bottom: 24px;
   text-align: center;
   box-shadow: 0 4px 16px var(--card-shadow);
 }
