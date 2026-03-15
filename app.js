@@ -37,34 +37,34 @@ const WIKIPEDIA_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 const cityBg = document.getElementById('city-bg');
 const cityBgOverlay = document.getElementById('city-bg-overlay');
 
+// Skip map, flag, coat of arms, seal, and other non-photo images
+function isCityPhoto(url) {
+  if (!url) return false;
+  const lower = url.toLowerCase();
+  const skipPatterns = [
+    'map', 'location', 'locator', 'flag', 'coat_of_arms', 'coa_',
+    'seal_of', 'wappen', 'blason', 'escudo', 'herb_', 'arms_of',
+    'logo', 'emblem', 'banner', 'icon', 'symbol', '.svg',
+  ];
+  return !skipPatterns.some(p => lower.includes(p));
+}
+
 async function fetchCityImage(cityName, qualifier) {
-  // Build search attempts: "City, State" > "City State" > "City city" > "City"
   const attempts = [];
   if (qualifier) {
-    // e.g. "Gothenburg, Nebraska" or "Gothenburg, Västra Götaland County, Sweden"
     const parts = qualifier.split(',').map(s => s.trim());
-    // Try "City, first_qualifier" (most specific, e.g. "Gothenburg, Nebraska")
     if (parts.length > 0) attempts.push(`${cityName}, ${parts[0]}`);
-    // Try "City, country" if there are multiple parts
     if (parts.length > 1) attempts.push(`${cityName}, ${parts[parts.length - 1]}`);
   }
   attempts.push(cityName);
   attempts.push(`${cityName} city`);
 
   for (const query of attempts) {
-    try {
-      const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(query)}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.type === 'disambiguation' || data.type === 'no-extract') continue;
-      const img = data.originalimage?.source || data.thumbnail?.source;
-      if (img) return img;
-    } catch {
-      continue;
-    }
+    const img = await fetchWikipediaPhoto(query);
+    if (img) return img;
   }
 
-  // Fallback: use Wikipedia search API
+  // Fallback: Wikipedia search API
   const searchTerm = qualifier ? `${cityName} ${qualifier.split(',')[0]}` : `${cityName} city`;
   try {
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*&srlimit=3`;
@@ -75,17 +75,56 @@ async function fetchCityImage(cityName, qualifier) {
     if (!results || results.length === 0) return null;
 
     for (const result of results) {
-      const summaryRes = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(result.title)}`);
-      if (!summaryRes.ok) continue;
-      const summary = await summaryRes.json();
-      if (summary.type === 'disambiguation') continue;
-      const img = summary.originalimage?.source || summary.thumbnail?.source;
+      const img = await fetchWikipediaPhoto(result.title);
       if (img) return img;
     }
-  } catch {
-    // Give up silently
-  }
+  } catch {}
 
+  return null;
+}
+
+async function fetchWikipediaPhoto(title) {
+  try {
+    // First try the summary endpoint for the main image
+    const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(title)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.type === 'disambiguation' || data.type === 'no-extract') return null;
+
+    const mainImg = data.originalimage?.source || data.thumbnail?.source;
+    if (isCityPhoto(mainImg)) return mainImg;
+
+    // Main image was a map/flag — fetch page images to find a real photo
+    const imagesUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(data.title)}&prop=images&format=json&origin=*&imlimit=20`;
+    const imagesRes = await fetch(imagesUrl);
+    if (!imagesRes.ok) return null;
+    const imagesData = await imagesRes.json();
+    const pages = imagesData.query?.pages;
+    if (!pages) return null;
+
+    const page = Object.values(pages)[0];
+    const images = page.images || [];
+
+    // Filter to likely photo filenames
+    for (const img of images) {
+      const fname = img.title.toLowerCase();
+      if (!fname.match(/\.(jpg|jpeg|png)$/)) continue;
+      if (!isCityPhoto(fname)) continue;
+      // Skip generic files
+      if (fname.includes('commons-logo') || fname.includes('wiki')) continue;
+
+      // Get the actual image URL
+      const fileUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(img.title)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
+      const fileRes = await fetch(fileUrl);
+      if (!fileRes.ok) continue;
+      const fileData = await fileRes.json();
+      const filePages = fileData.query?.pages;
+      if (!filePages) continue;
+      const filePage = Object.values(filePages)[0];
+      const url = filePage.imageinfo?.[0]?.url;
+      if (url && isCityPhoto(url)) return url;
+    }
+  } catch {}
   return null;
 }
 
@@ -596,8 +635,11 @@ async function loadForecast(lat, lon, cityName, qualifier) {
 // ===== Event Listeners =====
 searchForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const query = cityInput.value.trim();
-  if (!query) return;
+  const rawQuery = cityInput.value.trim();
+  if (!rawQuery) return;
+
+  // Strip qualifier suffix so geocoding API gets just the city name
+  const query = rawQuery.split(',')[0].trim();
 
   showLoader();
   hideError();
