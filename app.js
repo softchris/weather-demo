@@ -45,8 +45,21 @@ function isCityPhoto(url) {
     'map', 'location', 'locator', 'flag', 'coat_of_arms', 'coa_',
     'seal_of', 'wappen', 'blason', 'escudo', 'herb_', 'arms_of',
     'logo', 'emblem', 'banner', 'icon', 'symbol', '.svg',
+    'portrait', 'headshot', 'bust_of', 'signature', 'autograph',
+    'commons-logo', 'wiki', 'medal', 'ribbon', 'stamp', 'pin_',
   ];
   return !skipPatterns.some(p => lower.includes(p));
+}
+
+// Prefer landscape-looking filenames
+function isLikelyLandscape(fname) {
+  const lower = fname.toLowerCase();
+  const goodPatterns = [
+    'skyline', 'panorama', 'aerial', 'cityscape', 'landscape',
+    'view', 'harbour', 'harbor', 'beach', 'coast', 'waterfront',
+    'downtown', 'city_', 'overview', 'sunset', 'sunrise',
+  ];
+  return goodPatterns.some(p => lower.includes(p));
 }
 
 async function fetchCityImage(cityName, qualifier) {
@@ -80,51 +93,95 @@ async function fetchCityImage(cityName, qualifier) {
     }
   } catch {}
 
-  return null;
+  // Final fallback: Wikimedia Commons search for landscape photos
+  return await searchCommonsPhoto(cityName, qualifier);
 }
 
 async function fetchWikipediaPhoto(title) {
   try {
-    // First try the summary endpoint for the main image
     const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(title)}`);
     if (!res.ok) return null;
     const data = await res.json();
     if (data.type === 'disambiguation' || data.type === 'no-extract') return null;
 
-    const mainImg = data.originalimage?.source || data.thumbnail?.source;
-    if (isCityPhoto(mainImg)) return mainImg;
+    // Check main image — accept if it's a photo and landscape-oriented
+    const mainImg = data.originalimage?.source;
+    const mainW = data.originalimage?.width || 0;
+    const mainH = data.originalimage?.height || 0;
+    if (mainImg && isCityPhoto(mainImg) && mainW >= mainH) return mainImg;
 
-    // Main image was a map/flag — fetch page images to find a real photo
-    const imagesUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(data.title)}&prop=images&format=json&origin=*&imlimit=20`;
+    // Main image rejected — scan page images for a better one
+    const imagesUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(data.title)}&prop=images&format=json&origin=*&imlimit=30`;
     const imagesRes = await fetch(imagesUrl);
     if (!imagesRes.ok) return null;
     const imagesData = await imagesRes.json();
-    const pages = imagesData.query?.pages;
-    if (!pages) return null;
+    const page = Object.values(imagesData.query?.pages || {})[0];
+    const images = page?.images || [];
 
-    const page = Object.values(pages)[0];
-    const images = page.images || [];
+    // First pass: prefer landscape-named images
+    const candidates = images.filter(img => {
+      const f = img.title.toLowerCase();
+      return f.match(/\.(jpg|jpeg|png)$/) && isCityPhoto(f);
+    });
 
-    // Filter to likely photo filenames
-    for (const img of images) {
-      const fname = img.title.toLowerCase();
-      if (!fname.match(/\.(jpg|jpeg|png)$/)) continue;
-      if (!isCityPhoto(fname)) continue;
-      // Skip generic files
-      if (fname.includes('commons-logo') || fname.includes('wiki')) continue;
+    // Sort: landscape-keyword files first
+    candidates.sort((a, b) => {
+      const aGood = isLikelyLandscape(a.title) ? 0 : 1;
+      const bGood = isLikelyLandscape(b.title) ? 0 : 1;
+      return aGood - bGood;
+    });
 
-      // Get the actual image URL
-      const fileUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(img.title)}&prop=imageinfo&iiprop=url&format=json&origin=*`;
-      const fileRes = await fetch(fileUrl);
-      if (!fileRes.ok) continue;
-      const fileData = await fileRes.json();
-      const filePages = fileData.query?.pages;
-      if (!filePages) continue;
-      const filePage = Object.values(filePages)[0];
-      const url = filePage.imageinfo?.[0]?.url;
-      if (url && isCityPhoto(url)) return url;
+    // Check dimensions — pick the first landscape-oriented photo
+    for (const img of candidates.slice(0, 8)) {
+      const info = await getImageInfo(img.title, 'en.wikipedia.org');
+      if (!info) continue;
+      if (info.width >= info.height && info.width >= 800 && isCityPhoto(info.url)) {
+        return info.url;
+      }
     }
   } catch {}
+  return null;
+}
+
+async function getImageInfo(fileTitle, domain) {
+  try {
+    const url = `https://${domain}/w/api.php?action=query&titles=${encodeURIComponent(fileTitle)}&prop=imageinfo&iiprop=url|size&format=json&origin=*`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const page = Object.values(data.query?.pages || {})[0];
+    const info = page?.imageinfo?.[0];
+    return info ? { url: info.url, width: info.width, height: info.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+async function searchCommonsPhoto(cityName, qualifier) {
+  const searchTerms = [
+    `${cityName} skyline OR panorama OR aerial OR cityscape`,
+    `${cityName} landscape OR beach OR view`,
+  ];
+
+  for (const term of searchTerms) {
+    try {
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(term)}&format=json&origin=*&srlimit=5`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const results = data.query?.search || [];
+
+      for (const result of results) {
+        if (!isCityPhoto(result.title)) continue;
+        const info = await getImageInfo(result.title, 'commons.wikimedia.org');
+        if (info && info.width >= info.height && info.width >= 800) {
+          return info.url;
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
   return null;
 }
 
