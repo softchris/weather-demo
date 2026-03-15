@@ -569,3 +569,88 @@ document.addEventListener('click', (e) => {
 
 // Back to current weather from day detail view
 backToToday.addEventListener('click', restoreCurrentView);
+
+// ===== Quote of the Day =====
+const quotes = [
+  { text: "The time is always right to do what is right.", author: "Martin Luther King Jr." },
+  { text: "If there is no struggle, there is no progress.", author: "Frederick Douglass" },
+  { text: "Hold fast to dreams, for if dreams die, life is a broken-winged bird that cannot fly.", author: "Langston Hughes" },
+  { text: "I have learned over the years that when one's mind is made up, this diminishes fear.", author: "Rosa Parks" },
+  { text: "Success is to be measured not so much by the position that one has reached in life as by the obstacles which he has overcome.", author: "Booker T. Washington" },
+  { text: "Never be limited by other people's limited imaginations.", author: "Mae C. Jemison" },
+  { text: "You are your best thing.", author: "Toni Morrison" },
+  { text: "Every great dream begins with a dreamer.", author: "Harriet Tubman" },
+  { text: "We may encounter many defeats but we must not be defeated.", author: "Maya Angelou" },
+  { text: "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.", author: "Malcolm X" },
+  { text: "The cost of liberty is less than the price of repression.", author: "W. E. B. Du Bois" },
+  { text: "I am no longer accepting the things I cannot change. I am changing the things I cannot accept.", author: "Angela Davis" },
+  { text: "In recognizing the humanity of our fellow beings, we pay ourselves the highest tribute.", author: "Thurgood Marshall" },
+  { text: "We need to reshape our own perception of how we view ourselves. We have to step up as women and take the lead.", author: "Beyoncé" },
+  { text: "There is no better than adversity. Every defeat, every heartbreak, every loss, contains its own seed, its own lesson on how to improve.", author: "Malcolm X" },
+  { text: "The most common way people give up their power is by thinking they don't have any.", author: "Alice Walker" },
+  { text: "I had no idea that history was being made. I was just tired of giving up.", author: "Rosa Parks" },
+  { text: "Have a vision. Be demanding.", author: "Colin Powell" },
+  { text: "Change will not come if we wait for some other person or some other time. We are the ones we've been waiting for.", author: "Barack Obama" },
+  { text: "You can't separate peace from freedom because no one can be at peace unless he has his freedom.", author: "Malcolm X" },
+  { text: "Hate is too great a burden to bear. It injures the hater more than it injures the hated.", author: "Coretta Scott King" },
+  { text: "When you know better, you do better.", author: "Maya Angelou" },
+  { text: "If you want to fly, you have to give up the things that weigh you down.", author: "Toni Morrison" },
+  { text: "Not everything that is faced can be changed, but nothing can be changed until it is faced.", author: "James Baldwin" },
+  { text: "I learned that courage was not the absence of fear, but the triumph over it.", author: "Nelson Mandela" },
+  { text: "I am where I am because of the bridges that I crossed.", author: "Oprah Winfrey" },
+  { text: "We are the ones we have been waiting for.", author: "June Jordan" },
+  { text: "Without community, there is no liberation.", author: "Audre Lorde" },
+  { text: "The things you do for yourself are gone when you are gone, but the things you do for others remain as your legacy.", author: "Kalu Ndukwe Kalu" },
+  { text: "What we learn with pleasure we never forget.", author: "Alfred Mercier" },
+  { text: "Do not follow where the path may lead. Go instead where there is no path and leave a trail.", author: "Ralph Waldo Emerson" },
+  { text: "Bringing the gifts that my ancestors gave, I am the dream and the hope of the slave.", author: "Maya Angelou" },
+  { text: "If they don't give you a seat at the table, bring a folding chair.", author: "Shirley Chisholm" },
+  { text: "You don't make progress by standing on the sidelines, whimpering and complaining. You make progress by implementing ideas.", author: "Shirley Chisholm" },
+  { text: "Defining myself, as opposed to being defined by others, is one of the most difficult challenges I face.", author: "Carol Moseley Braun" },
+  { text: "I refuse to accept the view that mankind is so tragically bound to the starless midnight of racism and war that the bright daybreak of peace and brotherhood can never become a reality.", author: "Martin Luther King Jr." },
+  { text: "We all have dreams. In order to make dreams come into reality, it takes determination, self-discipline, and effort.", author: "Jesse Owens" },
+  { text: "Darkness cannot drive out darkness; only light can do that.", author: "Martin Luther King Jr." },
+  { text: "Your silence will not protect you.", author: "Audre Lorde" },
+  { text: "Nothing in life is to be feared, it is only to be understood. Now is the time to understand more, so that we may fear less.", author: "Marie Curie" },
+  { text: "Life is not a spectator sport. If you're going to spend your whole life in the grandstand just watching what goes on, in my opinion you're wasting your life.", author: "Jackie Robinson" },
+  { text: "Stumbling is not falling.", author: "Malcolm X" },
+  { text: "One day our descendants will think it incredible that we paid so much attention to things like the amount of melanin in our skin.", author: "Martin Luther King Jr." },
+  { text: "The soul that is within me no man can degrade.", author: "Frederick Douglass" },
+  { text: "Impossible is just a big word thrown around by small men who find it easier to live in the world they've been given than to explore the power they have to change it.", author: "Muhammad Ali" },
+  { text: "Service is the rent we pay for being. It is the very purpose of life, and not something you do in your spare time.", author: "Marian Wright Edelman" },
+  { text: "I've learned that people will forget what you said, people will forget what you did, but people will never forget how you made them feel.", author: "Maya Angelou" },
+  { text: "There are still many causes worth sacrificing for, so much history yet to be made.", author: "Michelle Obama" },
+  { text: "Success isn't about how much money you make; it's about the difference you make in people's lives.", author: "Michelle Obama" },
+  { text: "A man who stands for nothing will fall for anything.", author: "Malcolm X" },
+  { text: "Injustice anywhere is a threat to justice everywhere.", author: "Martin Luther King Jr." },
+  { text: "Where there is no vision, there is no hope.", author: "George Washington Carver" },
+  { text: "Freeing yourself was one thing; claiming ownership of that freed self was another.", author: "Toni Morrison" },
+  { text: "It is easier to build strong children than to repair broken men.", author: "Frederick Douglass" },
+  { text: "I am not going to die, I'm going home like a shooting star.", author: "Sojourner Truth" },
+  { text: "You can be the lead in your own life.", author: "Kerry Washington" },
+  { text: "Intelligence plus character — that is the goal of true education.", author: "Martin Luther King Jr." },
+  { text: "The most difficult thing is the decision to act, the rest is merely tenacity.", author: "Amelia Boynton Robinson" },
+  { text: "Whatever we believe about ourselves and our ability comes true for us.", author: "Susan L. Taylor" },
+  { text: "Do what you can, with what you have, where you are.", author: "John Lewis" },
+  { text: "When someone shows you who they are, believe them the first time.", author: "Maya Angelou" },
+  { text: "If you are always trying to be normal, you will never know how amazing you can be.", author: "Maya Angelou" },
+  { text: "For to be free is not merely to cast off one's chains, but to live in a way that respects and enhances the freedom of others.", author: "Nelson Mandela" },
+  { text: "My humanity is bound up in yours, for we can only be human together.", author: "Desmond Tutu" },
+  { text: "We have to talk about liberating minds as well as liberating society.", author: "Angela Davis" },
+];
+
+// Pick quote based on day-of-year so it rotates daily
+function getQuoteOfTheDay() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  return quotes[dayOfYear % quotes.length];
+}
+
+function renderQuote() {
+  const q = getQuoteOfTheDay();
+  document.getElementById('quote-text').textContent = q.text;
+  document.getElementById('quote-author').textContent = `— ${q.author}`;
+}
+
+renderQuote();

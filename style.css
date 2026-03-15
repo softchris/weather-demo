@@ -502,6 +502,43 @@ html {
   margin-top: 6px;
 }
 
+/* ===== Quote of the Day ===== */
+.quote {
+  background: var(--card-bg);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px 20px;
+  margin-top: 8px;
+  text-align: center;
+  box-shadow: 0 4px 16px var(--card-shadow);
+}
+
+.quote__text {
+  font-size: 0.95rem;
+  font-style: italic;
+  line-height: 1.55;
+  margin-bottom: 10px;
+  quotes: "\201C" "\201D";
+}
+
+.quote__text::before {
+  content: open-quote;
+}
+
+.quote__text::after {
+  content: close-quote;
+}
+
+.quote__author {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-style: normal;
+  font-weight: 600;
+}
+
 /* ===== Tablet & Desktop ===== */
 @media (min-width: 600px) {
   .app {
