@@ -74,15 +74,23 @@ async function fetchCityImage(cityName, qualifier) {
     if (parts.length > 1) attempts.push(`${rawName}, ${parts[parts.length - 1]}`);
   }
   attempts.push(rawName);
-  attempts.push(`${rawName} city`);
 
-  for (const query of attempts) {
+  // Deduplicate attempts
+  const seen = new Set();
+  const uniqueAttempts = attempts.filter(a => {
+    const key = a.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  for (const query of uniqueAttempts) {
     const img = await fetchWikipediaPhoto(query);
     if (img) return img;
   }
 
   // Fallback: Wikipedia search API
-  const searchTerm = qualifier ? `${cityName} ${qualifier.split(',')[0]}` : `${cityName} city`;
+  const searchTerm = qualifier ? `${rawName} ${qualifier.split(',')[0].trim()}` : rawName;
   try {
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*&srlimit=3`;
     const res = await fetch(searchUrl);
