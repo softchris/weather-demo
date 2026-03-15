@@ -31,164 +31,36 @@ let selectedDayIndex = -1; // -1 = live current weather
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
-const WIKIPEDIA_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 
-// ===== City Background Image =====
+// ===== City Background Image (Pexels API) =====
+// Get your free API key at https://www.pexels.com/api/
+const PEXELS_API_KEY = '';
 const cityBg = document.getElementById('city-bg');
 const cityBgOverlay = document.getElementById('city-bg-overlay');
 
-// Skip map, flag, coat of arms, seal, and other non-photo images
-function isCityPhoto(url) {
-  if (!url) return false;
-  const lower = url.toLowerCase();
-  const skipPatterns = [
-    'map', 'location', 'locator', 'flag', 'coat_of_arms', 'coa_',
-    'seal_of', 'wappen', 'blason', 'escudo', 'herb_', 'arms_of',
-    'logo', 'emblem', 'banner', 'icon', 'symbol', '.svg',
-    'portrait', 'headshot', 'bust_of', 'signature', 'autograph',
-    'commons-logo', 'wiki', 'medal', 'ribbon', 'stamp', 'pin_',
-  ];
-  return !skipPatterns.some(p => lower.includes(p));
-}
+async function fetchCityImage(cityName) {
+  if (!PEXELS_API_KEY) return null;
 
-// Prefer landscape-looking filenames
-function isLikelyLandscape(fname) {
-  const lower = fname.toLowerCase();
-  const goodPatterns = [
-    'skyline', 'panorama', 'aerial', 'cityscape', 'landscape',
-    'view', 'harbour', 'harbor', 'beach', 'coast', 'waterfront',
-    'downtown', 'city_', 'overview', 'sunset', 'sunrise',
-  ];
-  return goodPatterns.some(p => lower.includes(p));
-}
-
-async function fetchCityImage(cityName, qualifier) {
-  // cityName may be a full display name like "Budapest, Budapest, Hungary"
-  // Extract just the raw city name (first part before any comma)
   const rawName = cityName.split(',')[0].trim();
-
-  const attempts = [];
-  if (qualifier) {
-    const parts = qualifier.split(',').map(s => s.trim());
-    if (parts.length > 0) attempts.push(`${rawName}, ${parts[0]}`);
-    if (parts.length > 1) attempts.push(`${rawName}, ${parts[parts.length - 1]}`);
-  }
-  attempts.push(rawName);
-
-  // Deduplicate attempts
-  const seen = new Set();
-  const uniqueAttempts = attempts.filter(a => {
-    const key = a.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  for (const query of uniqueAttempts) {
-    const img = await fetchWikipediaPhoto(query);
-    if (img) return img;
-  }
-
-  // Fallback: Wikipedia search API
-  const searchTerm = qualifier ? `${rawName} ${qualifier.split(',')[0].trim()}` : rawName;
-  try {
-    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*&srlimit=3`;
-    const res = await fetch(searchUrl);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results = data.query?.search;
-    if (!results || results.length === 0) return null;
-
-    for (const result of results) {
-      const img = await fetchWikipediaPhoto(result.title);
-      if (img) return img;
-    }
-  } catch {}
-
-  // Final fallback: Wikimedia Commons search for landscape photos
-  return await searchCommonsPhoto(rawName);
-}
-
-async function fetchWikipediaPhoto(title) {
-  try {
-    const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(title)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data.type === 'disambiguation' || data.type === 'no-extract') return null;
-
-    // Check main image — accept if it's a photo and landscape-oriented
-    const mainImg = data.originalimage?.source;
-    const mainW = data.originalimage?.width || 0;
-    const mainH = data.originalimage?.height || 0;
-    if (mainImg && isCityPhoto(mainImg) && mainW >= mainH) return mainImg;
-
-    // Main image rejected — scan page images for a better one
-    const imagesUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(data.title)}&prop=images&format=json&origin=*&imlimit=30`;
-    const imagesRes = await fetch(imagesUrl);
-    if (!imagesRes.ok) return null;
-    const imagesData = await imagesRes.json();
-    const page = Object.values(imagesData.query?.pages || {})[0];
-    const images = page?.images || [];
-
-    // First pass: prefer landscape-named images
-    const candidates = images.filter(img => {
-      const f = img.title.toLowerCase();
-      return f.match(/\.(jpg|jpeg|png)$/) && isCityPhoto(f);
-    });
-
-    // Sort: landscape-keyword files first
-    candidates.sort((a, b) => {
-      const aGood = isLikelyLandscape(a.title) ? 0 : 1;
-      const bGood = isLikelyLandscape(b.title) ? 0 : 1;
-      return aGood - bGood;
-    });
-
-    // Check dimensions — pick the first landscape-oriented photo
-    for (const img of candidates.slice(0, 8)) {
-      const info = await getImageInfo(img.title, 'en.wikipedia.org');
-      if (!info) continue;
-      if (info.width >= info.height && info.width >= 800 && isCityPhoto(info.url)) {
-        return info.url;
-      }
-    }
-  } catch {}
-  return null;
-}
-
-async function getImageInfo(fileTitle, domain) {
-  try {
-    const url = `https://${domain}/w/api.php?action=query&titles=${encodeURIComponent(fileTitle)}&prop=imageinfo&iiprop=url|size&format=json&origin=*`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    const page = Object.values(data.query?.pages || {})[0];
-    const info = page?.imageinfo?.[0];
-    return info ? { url: info.url, width: info.width, height: info.height } : null;
-  } catch {
-    return null;
-  }
-}
-
-async function searchCommonsPhoto(cityName) {
-  const searchTerms = [
-    `${cityName} skyline OR panorama OR aerial OR cityscape`,
-    `${cityName} landscape OR beach OR view`,
+  const queries = [
+    `${rawName} city skyline`,
+    `${rawName} cityscape`,
+    rawName,
   ];
 
-  for (const term of searchTerms) {
+  for (const query of queries) {
     try {
-      const url = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srsearch=${encodeURIComponent(term)}&format=json&origin=*&srlimit=5`;
-      const res = await fetch(url);
+      const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=landscape&per_page=5&size=large`;
+      const res = await fetch(url, {
+        headers: { Authorization: PEXELS_API_KEY },
+      });
       if (!res.ok) continue;
       const data = await res.json();
-      const results = data.query?.search || [];
 
-      for (const result of results) {
-        if (!isCityPhoto(result.title)) continue;
-        const info = await getImageInfo(result.title, 'commons.wikimedia.org');
-        if (info && info.width >= info.height && info.width >= 800) {
-          return info.url;
-        }
+      if (data.photos && data.photos.length > 0) {
+        // Pick a random photo from top results for variety
+        const idx = Math.floor(Math.random() * Math.min(data.photos.length, 3));
+        return data.photos[idx].src.landscape;
       }
     } catch {
       continue;
@@ -331,7 +203,7 @@ function renderCityResults(results) {
       const qualifier = [city.admin1, city.country].filter(Boolean).join(', ');
       const displayName = qualifier ? `${city.name}, ${qualifier}` : city.name;
       cityInput.value = displayName;
-      loadForecast(city.latitude, city.longitude, displayName, qualifier);
+      loadForecast(city.latitude, city.longitude, displayName);
     });
 
     cityResults.appendChild(li);
@@ -670,7 +542,7 @@ function renderDailyForecast(data) {
 }
 
 // ===== Main Load Flow =====
-async function loadForecast(lat, lon, cityName, qualifier) {
+async function loadForecast(lat, lon, cityName) {
   showLoader();
   hideError();
   clearCityBackground();
@@ -679,7 +551,7 @@ async function loadForecast(lat, lon, cityName, qualifier) {
     const [data, pollenData, cityImage] = await Promise.all([
       fetchForecast(lat, lon),
       fetchPollen(lat, lon),
-      fetchCityImage(cityName, qualifier),
+      fetchCityImage(cityName),
     ]);
 
     lastForecastData = data;
@@ -727,7 +599,7 @@ searchForm.addEventListener('submit', async (e) => {
       const qualifier = [results[0].admin1, results[0].country].filter(Boolean).join(', ');
       const displayName = qualifier ? `${results[0].name}, ${qualifier}` : results[0].name;
       cityInput.value = displayName;
-      loadForecast(results[0].latitude, results[0].longitude, displayName, qualifier);
+      loadForecast(results[0].latitude, results[0].longitude, displayName);
     } else {
       renderCityResults(results);
     }
