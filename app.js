@@ -198,6 +198,10 @@ async function searchCommonsPhoto(cityName) {
 }
 
 function setCityBackground(imageUrl) {
+  // Always clear the old image first
+  cityBg.classList.remove('city-bg--active');
+  cityBgOverlay.classList.remove('city-bg-overlay--active');
+
   if (imageUrl) {
     const img = new Image();
     img.onload = () => {
@@ -207,13 +211,14 @@ function setCityBackground(imageUrl) {
     };
     img.src = imageUrl;
   } else {
-    clearCityBackground();
+    cityBg.style.backgroundImage = '';
   }
 }
 
 function clearCityBackground() {
   cityBg.classList.remove('city-bg--active');
   cityBgOverlay.classList.remove('city-bg-overlay--active');
+  cityBg.style.backgroundImage = '';
 }
 
 // ===== WMO Weather Code Mapping =====
@@ -668,6 +673,7 @@ function renderDailyForecast(data) {
 async function loadForecast(lat, lon, cityName, qualifier) {
   showLoader();
   hideError();
+  clearCityBackground();
 
   try {
     const [data, pollenData, cityImage] = await Promise.all([
