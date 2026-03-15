@@ -31,6 +31,41 @@ let selectedDayIndex = -1; // -1 = live current weather
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+const WIKIPEDIA_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary';
+
+// ===== City Background Image =====
+const cityBg = document.getElementById('city-bg');
+const cityBgOverlay = document.getElementById('city-bg-overlay');
+
+async function fetchCityImage(cityName) {
+  try {
+    const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(cityName)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.originalimage?.source || data.thumbnail?.source || null;
+  } catch {
+    return null;
+  }
+}
+
+function setCityBackground(imageUrl) {
+  if (imageUrl) {
+    const img = new Image();
+    img.onload = () => {
+      cityBg.style.backgroundImage = `url('${imageUrl}')`;
+      cityBg.classList.add('city-bg--active');
+      cityBgOverlay.classList.add('city-bg-overlay--active');
+    };
+    img.src = imageUrl;
+  } else {
+    clearCityBackground();
+  }
+}
+
+function clearCityBackground() {
+  cityBg.classList.remove('city-bg--active');
+  cityBgOverlay.classList.remove('city-bg-overlay--active');
+}
 
 // ===== WMO Weather Code Mapping =====
 const weatherCodes = {
@@ -484,15 +519,18 @@ async function loadForecast(lat, lon, cityName) {
   hideError();
 
   try {
-    const [data, pollenData] = await Promise.all([
+    const [data, pollenData, cityImage] = await Promise.all([
       fetchForecast(lat, lon),
       fetchPollen(lat, lon),
+      fetchCityImage(cityName),
     ]);
 
     lastForecastData = data;
     lastPollenData = pollenData;
     lastCityName = cityName;
     selectedDayIndex = -1;
+
+    setCityBackground(cityImage);
 
     // Restore labels in case they were changed by a previous day-click
     const labels = document.querySelectorAll('.current__detail-label');
