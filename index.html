@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="gradient-clear-day">
+
+  <div class="app">
+    <header class="header">
+      <h1 class="header__title">🌤️ Weather</h1>
+    </header>
+
+    <section class="search">
+      <form class="search__form" id="search-form" autocomplete="off">
+        <div class="search__input-group">
+          <input
+            type="text"
+            id="city-input"
+            class="search__input"
+            placeholder="Search city..."
+            aria-label="Search for a city"
+            required
+            minlength="2"
+          >
+          <button type="submit" class="search__btn search__btn--submit" aria-label="Search">
+            🔍
+          </button>
+          <button type="button" class="search__btn search__btn--location" id="geo-btn" aria-label="Use my location">
+            📍
+          </button>
+        </div>
+      </form>
+      <ul class="search__results" id="city-results" hidden></ul>
+    </section>
+
+    <div class="error" id="error-message" hidden>
+      <p class="error__text"></p>
+    </div>
+
+    <div class="loader" id="loader" hidden>
+      <div class="loader__spinner"></div>
+    </div>
+
+    <main class="weather" id="weather-content" hidden>
+      <section class="current" id="current-weather">
+        <div class="current__location">
+          <h2 class="current__city" id="current-city"></h2>
+          <p class="current__date" id="current-date"></p>
+        </div>
+        <div class="current__main">
+          <span class="current__icon" id="current-icon"></span>
+          <span class="current__temp" id="current-temp"></span>
+        </div>
+        <p class="current__desc" id="current-desc"></p>
+        <div class="current__details">
+          <div class="current__detail">
+            <span class="current__detail-label">Feels like</span>
+            <span class="current__detail-value" id="current-feels"></span>
+          </div>
+          <div class="current__detail">
+            <span class="current__detail-label">Humidity</span>
+            <span class="current__detail-value" id="current-humidity"></span>
+          </div>
+          <div class="current__detail">
+            <span class="current__detail-label">Wind</span>
+            <span class="current__detail-value" id="current-wind"></span>
+          </div>
+          <div class="current__detail">
+            <span class="current__detail-label">UV Index</span>
+            <span class="current__detail-value" id="current-uv"></span>
+          </div>
+          <div class="current__detail">
+            <span class="current__detail-label">Rain chance</span>
+            <span class="current__detail-value" id="current-precip-prob"></span>
+          </div>
+          <div class="current__detail">
+            <span class="current__detail-label">Pollen</span>
+            <span class="current__detail-value" id="current-pollen"></span>
+          </div>
+        </div>
+        <button class="current__back-btn" id="back-to-today" hidden>← Back to now</button>
+      </section>
+
+      <section class="hourly" id="hourly">
+        <h3 class="hourly__title">Hourly</h3>
+        <div class="hourly__scroll" id="hourly-scroll"></div>
+      </section>
+
+      <section class="forecast" id="forecast">
+        <h3 class="forecast__title">7-Day Forecast</h3>
+        <div class="forecast__grid" id="forecast-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
