@@ -37,12 +37,19 @@ const WIKIPEDIA_URL = 'https://en.wikipedia.org/api/rest_v1/page/summary';
 const cityBg = document.getElementById('city-bg');
 const cityBgOverlay = document.getElementById('city-bg-overlay');
 
-async function fetchCityImage(cityName) {
-  // Try exact name, then with "city" suffix, then Wikipedia search
-  const attempts = [
-    cityName,
-    `${cityName} city`,
-  ];
+async function fetchCityImage(cityName, qualifier) {
+  // Build search attempts: "City, State" > "City State" > "City city" > "City"
+  const attempts = [];
+  if (qualifier) {
+    // e.g. "Gothenburg, Nebraska" or "Gothenburg, Västra Götaland County, Sweden"
+    const parts = qualifier.split(',').map(s => s.trim());
+    // Try "City, first_qualifier" (most specific, e.g. "Gothenburg, Nebraska")
+    if (parts.length > 0) attempts.push(`${cityName}, ${parts[0]}`);
+    // Try "City, country" if there are multiple parts
+    if (parts.length > 1) attempts.push(`${cityName}, ${parts[parts.length - 1]}`);
+  }
+  attempts.push(cityName);
+  attempts.push(`${cityName} city`);
 
   for (const query of attempts) {
     try {
@@ -57,9 +64,10 @@ async function fetchCityImage(cityName) {
     }
   }
 
-  // Fallback: use Wikipedia search API to find the right article
+  // Fallback: use Wikipedia search API
+  const searchTerm = qualifier ? `${cityName} ${qualifier.split(',')[0]}` : `${cityName} city`;
   try {
-    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cityName + ' city')}&format=json&origin=*&srlimit=3`;
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*&srlimit=3`;
     const res = await fetch(searchUrl);
     if (!res.ok) return null;
     const data = await res.json();
@@ -208,7 +216,8 @@ function renderCityResults(results) {
     li.addEventListener('click', () => {
       cityResults.hidden = true;
       cityInput.value = city.name;
-      loadForecast(city.latitude, city.longitude, city.name);
+      const qualifier = [city.admin1, city.country].filter(Boolean).join(', ');
+      loadForecast(city.latitude, city.longitude, city.name, qualifier);
     });
 
     cityResults.appendChild(li);
@@ -547,7 +556,7 @@ function renderDailyForecast(data) {
 }
 
 // ===== Main Load Flow =====
-async function loadForecast(lat, lon, cityName) {
+async function loadForecast(lat, lon, cityName, qualifier) {
   showLoader();
   hideError();
 
@@ -555,7 +564,7 @@ async function loadForecast(lat, lon, cityName) {
     const [data, pollenData, cityImage] = await Promise.all([
       fetchForecast(lat, lon),
       fetchPollen(lat, lon),
-      fetchCityImage(cityName),
+      fetchCityImage(cityName, qualifier),
     ]);
 
     lastForecastData = data;
@@ -598,7 +607,8 @@ searchForm.addEventListener('submit', async (e) => {
 
     if (results.length === 1) {
       cityInput.value = results[0].name;
-      loadForecast(results[0].latitude, results[0].longitude, results[0].name);
+      const qualifier = [results[0].admin1, results[0].country].filter(Boolean).join(', ');
+      loadForecast(results[0].latitude, results[0].longitude, results[0].name, qualifier);
     } else {
       renderCityResults(results);
     }
