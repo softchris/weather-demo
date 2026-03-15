@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-app-v6';
+const CACHE_NAME = 'weather-app-v7';
 const STATIC_ASSETS = [
   '/weather-demo/',
   '/weather-demo/index.html',

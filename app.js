@@ -215,9 +215,10 @@ function renderCityResults(results) {
 
     li.addEventListener('click', () => {
       cityResults.hidden = true;
-      cityInput.value = city.name;
       const qualifier = [city.admin1, city.country].filter(Boolean).join(', ');
-      loadForecast(city.latitude, city.longitude, city.name, qualifier);
+      const displayName = qualifier ? `${city.name}, ${qualifier}` : city.name;
+      cityInput.value = displayName;
+      loadForecast(city.latitude, city.longitude, displayName, qualifier);
     });
 
     cityResults.appendChild(li);
@@ -606,9 +607,10 @@ searchForm.addEventListener('submit', async (e) => {
     hideLoader();
 
     if (results.length === 1) {
-      cityInput.value = results[0].name;
       const qualifier = [results[0].admin1, results[0].country].filter(Boolean).join(', ');
-      loadForecast(results[0].latitude, results[0].longitude, results[0].name, qualifier);
+      const displayName = qualifier ? `${results[0].name}, ${qualifier}` : results[0].name;
+      cityInput.value = displayName;
+      loadForecast(results[0].latitude, results[0].longitude, displayName, qualifier);
     } else {
       renderCityResults(results);
     }
