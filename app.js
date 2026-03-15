@@ -38,14 +38,47 @@ const cityBg = document.getElementById('city-bg');
 const cityBgOverlay = document.getElementById('city-bg-overlay');
 
 async function fetchCityImage(cityName) {
+  // Try exact name, then with "city" suffix, then Wikipedia search
+  const attempts = [
+    cityName,
+    `${cityName} city`,
+  ];
+
+  for (const query of attempts) {
+    try {
+      const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(query)}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.type === 'disambiguation' || data.type === 'no-extract') continue;
+      const img = data.originalimage?.source || data.thumbnail?.source;
+      if (img) return img;
+    } catch {
+      continue;
+    }
+  }
+
+  // Fallback: use Wikipedia search API to find the right article
   try {
-    const res = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(cityName)}`);
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(cityName + ' city')}&format=json&origin=*&srlimit=3`;
+    const res = await fetch(searchUrl);
     if (!res.ok) return null;
     const data = await res.json();
-    return data.originalimage?.source || data.thumbnail?.source || null;
+    const results = data.query?.search;
+    if (!results || results.length === 0) return null;
+
+    for (const result of results) {
+      const summaryRes = await fetch(`${WIKIPEDIA_URL}/${encodeURIComponent(result.title)}`);
+      if (!summaryRes.ok) continue;
+      const summary = await summaryRes.json();
+      if (summary.type === 'disambiguation') continue;
+      const img = summary.originalimage?.source || summary.thumbnail?.source;
+      if (img) return img;
+    }
   } catch {
-    return null;
+    // Give up silently
   }
+
+  return null;
 }
 
 function setCityBackground(imageUrl) {
