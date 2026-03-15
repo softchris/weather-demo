@@ -63,14 +63,18 @@ function isLikelyLandscape(fname) {
 }
 
 async function fetchCityImage(cityName, qualifier) {
+  // cityName may be a full display name like "Budapest, Budapest, Hungary"
+  // Extract just the raw city name (first part before any comma)
+  const rawName = cityName.split(',')[0].trim();
+
   const attempts = [];
   if (qualifier) {
     const parts = qualifier.split(',').map(s => s.trim());
-    if (parts.length > 0) attempts.push(`${cityName}, ${parts[0]}`);
-    if (parts.length > 1) attempts.push(`${cityName}, ${parts[parts.length - 1]}`);
+    if (parts.length > 0) attempts.push(`${rawName}, ${parts[0]}`);
+    if (parts.length > 1) attempts.push(`${rawName}, ${parts[parts.length - 1]}`);
   }
-  attempts.push(cityName);
-  attempts.push(`${cityName} city`);
+  attempts.push(rawName);
+  attempts.push(`${rawName} city`);
 
   for (const query of attempts) {
     const img = await fetchWikipediaPhoto(query);
@@ -94,7 +98,7 @@ async function fetchCityImage(cityName, qualifier) {
   } catch {}
 
   // Final fallback: Wikimedia Commons search for landscape photos
-  return await searchCommonsPhoto(cityName, qualifier);
+  return await searchCommonsPhoto(rawName);
 }
 
 async function fetchWikipediaPhoto(title) {
@@ -157,7 +161,7 @@ async function getImageInfo(fileTitle, domain) {
   }
 }
 
-async function searchCommonsPhoto(cityName, qualifier) {
+async function searchCommonsPhoto(cityName) {
   const searchTerms = [
     `${cityName} skyline OR panorama OR aerial OR cityscape`,
     `${cityName} landscape OR beach OR view`,
