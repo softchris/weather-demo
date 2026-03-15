@@ -51,6 +51,8 @@ async function fetchCityInfo(cityName) {
   // Also try with country qualifier for disambiguation
   const parts = cityName.split(',').map(s => s.trim());
   if (parts.length >= 3) attempts.push(`${parts[0]}, ${parts[parts.length - 1]}`);
+  // Fallback: append "city" (handles "New York" → "New York City", etc.)
+  attempts.push(`${rawName} city`);
 
   for (const query of attempts) {
     try {
