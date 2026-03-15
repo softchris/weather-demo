@@ -95,18 +95,9 @@ weather-demo/
 | [Open-Meteo Forecast](https://open-meteo.com/en/docs) | Current, hourly & daily weather | ❌ Free |
 | [Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api) | City name → coordinates | ❌ Free |
 | [Open-Meteo Air Quality](https://open-meteo.com/en/docs/air-quality-api) | Pollen data | ❌ Free |
-| [Pexels](https://www.pexels.com/api/) | City background images | 🔑 Free key |
+| [Wikipedia REST](https://en.wikipedia.org/api/rest_v1/) | City info blurb | ❌ Free |
 
-> 📝 Open-Meteo allows 10,000 API calls/day. Pexels allows 200 requests/hour — both more than enough for personal use.
-
-### 🖼️ City Background Images (Optional)
-
-To show beautiful city photos behind the weather data, get a free Pexels API key:
-
-1. Go to [pexels.com/api](https://www.pexels.com/api/) and create a free account
-2. Copy your API key
-3. Open `app.js` and paste it into the `PEXELS_API_KEY` constant at the top
-4. That's it! The app works great without it too — you'll just see gradient backgrounds instead
+> 📝 Free tier allows 10,000 API calls/day — more than enough for personal use.
 
 ---
 

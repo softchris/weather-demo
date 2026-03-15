@@ -32,65 +32,59 @@ const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 
-// ===== City Background Image (Pexels API) =====
-// Get your free API key at https://www.pexels.com/api/
-const PEXELS_API_KEY = '';
-const cityBg = document.getElementById('city-bg');
-const cityBgOverlay = document.getElementById('city-bg-overlay');
+// ===== City Info from Wikipedia =====
+const WIKIPEDIA_API = 'https://en.wikipedia.org/api/rest_v1/page/summary';
+const cityInfoCache = new Map(); // in-memory cache: cityName → { extract, url }
+const cityInfoEl = document.getElementById('city-info');
+const cityInfoText = document.getElementById('city-info-text');
+const cityInfoLink = document.getElementById('city-info-link');
 
-async function fetchCityImage(cityName) {
-  if (!PEXELS_API_KEY) return null;
-
+async function fetchCityInfo(cityName) {
   const rawName = cityName.split(',')[0].trim();
-  const queries = [
-    `${rawName} city skyline`,
-    `${rawName} cityscape`,
-    rawName,
-  ];
+  const cacheKey = rawName.toLowerCase();
 
-  for (const query of queries) {
+  if (cityInfoCache.has(cacheKey)) {
+    return cityInfoCache.get(cacheKey);
+  }
+
+  const attempts = [rawName];
+  // Also try with country qualifier for disambiguation
+  const parts = cityName.split(',').map(s => s.trim());
+  if (parts.length >= 3) attempts.push(`${parts[0]}, ${parts[parts.length - 1]}`);
+
+  for (const query of attempts) {
     try {
-      const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=landscape&per_page=5&size=large`;
-      const res = await fetch(url, {
-        headers: { Authorization: PEXELS_API_KEY },
-      });
+      const res = await fetch(`${WIKIPEDIA_API}/${encodeURIComponent(query)}`);
       if (!res.ok) continue;
       const data = await res.json();
 
-      if (data.photos && data.photos.length > 0) {
-        // Pick a random photo from top results for variety
-        const idx = Math.floor(Math.random() * Math.min(data.photos.length, 3));
-        return data.photos[idx].src.landscape;
-      }
+      if (data.type === 'disambiguation' || !data.extract) continue;
+
+      const info = {
+        extract: data.extract,
+        url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(query)}`,
+      };
+      cityInfoCache.set(cacheKey, info);
+      return info;
     } catch {
       continue;
     }
   }
+
   return null;
 }
 
-function setCityBackground(imageUrl) {
-  // Always clear the old image first
-  cityBg.classList.remove('city-bg--active');
-  cityBgOverlay.classList.remove('city-bg-overlay--active');
-
-  if (imageUrl) {
-    const img = new Image();
-    img.onload = () => {
-      cityBg.style.backgroundImage = `url('${imageUrl}')`;
-      cityBg.classList.add('city-bg--active');
-      cityBgOverlay.classList.add('city-bg-overlay--active');
-    };
-    img.src = imageUrl;
-  } else {
-    cityBg.style.backgroundImage = '';
+function showCityInfo(info) {
+  if (!info) {
+    cityInfoEl.hidden = true;
+    return;
   }
-}
-
-function clearCityBackground() {
-  cityBg.classList.remove('city-bg--active');
-  cityBgOverlay.classList.remove('city-bg-overlay--active');
-  cityBg.style.backgroundImage = '';
+  // Trim to ~2 sentences for a clean look
+  const sentences = info.extract.match(/[^.!?]+[.!?]+/g) || [info.extract];
+  const short = sentences.slice(0, 2).join(' ').trim();
+  cityInfoText.textContent = short;
+  cityInfoLink.href = info.url;
+  cityInfoEl.hidden = false;
 }
 
 // ===== WMO Weather Code Mapping =====
@@ -545,13 +539,13 @@ function renderDailyForecast(data) {
 async function loadForecast(lat, lon, cityName) {
   showLoader();
   hideError();
-  clearCityBackground();
+  cityInfoEl.hidden = true;
 
   try {
-    const [data, pollenData, cityImage] = await Promise.all([
+    const [data, pollenData, cityInfo] = await Promise.all([
       fetchForecast(lat, lon),
       fetchPollen(lat, lon),
-      fetchCityImage(cityName),
+      fetchCityInfo(cityName),
     ]);
 
     lastForecastData = data;
@@ -559,7 +553,7 @@ async function loadForecast(lat, lon, cityName) {
     lastCityName = cityName;
     selectedDayIndex = -1;
 
-    setCityBackground(cityImage);
+    showCityInfo(cityInfo);
 
     // Restore labels in case they were changed by a previous day-click
     const labels = document.querySelectorAll('.current__detail-label');

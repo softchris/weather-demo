@@ -15,9 +15,6 @@
   <meta name="description" content="Beautiful mobile-first weather app with hourly & 7-day forecasts">
 </head>
 <body class="gradient-clear-day">
-  <div class="city-bg" id="city-bg"></div>
-  <div class="city-bg-overlay" id="city-bg-overlay"></div>
-
   <div class="app">
     <header class="header">
       <h1 class="header__title">🌤️ Weather</h1>
@@ -97,6 +94,11 @@
           </div>
         </div>
         <button class="current__back-btn" id="back-to-today" hidden>← Back to now</button>
+      </section>
+
+      <section class="city-info" id="city-info" hidden>
+        <p class="city-info__text" id="city-info-text"></p>
+        <a class="city-info__link" id="city-info-link" href="#" target="_blank" rel="noopener">Read more on Wikipedia →</a>
       </section>
 
       <section class="hourly" id="hourly">
