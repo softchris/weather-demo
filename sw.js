@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weather-app-v12';
+const CACHE_NAME = 'weather-app-v13';
 const STATIC_ASSETS = [
   '/weather-demo/',
   '/weather-demo/index.html',
@@ -31,15 +31,15 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
-  // API calls: always go to network
-  if (url.hostname.includes('open-meteo.com')) {
+  // API calls: always go to network (weather, Wikipedia, Wikimedia)
+  if (url.hostname !== location.hostname) {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
     );
     return;
   }
 
-  // Static assets: cache first, fallback to network
+  // Same-origin static assets: cache first, fallback to network
   e.respondWith(
     caches.match(e.request).then((cached) => {
       return cached || fetch(e.request).then((response) => {
